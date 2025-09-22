@@ -12,6 +12,8 @@ When working on the user interface, follow the UI guidelines to maintain consist
 
 When working on any part of the application, follow the testing guidelines to ensure appropriate tests are created for all code changes, including unit tests, UI tests, API tests, and integration tests as needed.
 
+When generating code, follow the coding guidelines to ensure consistent formatting, proper import organization, and adherence to best practices like DRY principles and dependency injection.
+
 ## Documentation Overview
 
 The project documentation will be built during the bootcamp sessions.
@@ -20,3 +22,4 @@ The project documentation will be built during the bootcamp sessions.
 - [Functional Requirements](../docs/functional-requirements.md) - Core requirements for task management features
 - [UI Guidelines](../docs/ui-guidelines.md) - Design system, color palette, and interaction guidelines
 - [Testing Guidelines](../docs/testing-guidelines.md) - Testing strategy, coverage requirements, and best practices
+- [Coding Guidelines](../docs/coding-guidelines.md) - Code formatting, organization, and quality standards
