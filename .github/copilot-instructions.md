@@ -4,8 +4,13 @@
 
 This file contains high-level instructions for GitHub Copilot to follow when generating code for this project. For detailed guidance, refer to the documentation files in the `docs/` directory.
 
+## Code Generation Guidelines
+
+When creating new functionality for this project, always refer to the functional requirements document to ensure alignment with project goals and user needs.
+
 ## Documentation Overview
 
 The project documentation will be built during the bootcamp sessions.
 
 - [Project Overview](../docs/project-overview.md) - Overview of the project
+- [Functional Requirements](../docs/functional-requirements.md) - Core requirements for task management features
