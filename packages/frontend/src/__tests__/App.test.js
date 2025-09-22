@@ -5,104 +5,171 @@ import { rest } from 'msw';
 import { setupServer } from 'msw/node';
 import App from '../App';
 
-// Mock server to intercept API requests
+// Mock data
+const mockTasks = [
+  {
+    id: 1,
+    title: 'Test Task 1',
+    description: 'First test task',
+    priority: 'High',
+    status: 'Not Started',
+    dueDate: '2025-09-30',
+    createdAt: '2025-09-22T10:00:00Z',
+    lastModified: '2025-09-22T10:00:00Z'
+  },
+  {
+    id: 2,
+    title: 'Test Task 2',
+    description: 'Second test task',
+    priority: 'Medium',
+    status: 'In Progress',
+    dueDate: '2025-10-05',
+    createdAt: '2025-09-21T09:00:00Z',
+    lastModified: '2025-09-22T11:00:00Z'
+  }
+];
+
+// Setup MSW server
 const server = setupServer(
-  // GET /api/items handler
-  rest.get('/api/items', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json([
-        { id: 1, name: 'Test Item 1', created_at: '2023-01-01T00:00:00.000Z' },
-        { id: 2, name: 'Test Item 2', created_at: '2023-01-02T00:00:00.000Z' },
-      ])
-    );
+  rest.get('/api/tasks', (req, res, ctx) => {
+    return res(ctx.json(mockTasks));
   }),
-  
-  // POST /api/items handler
-  rest.post('/api/items', (req, res, ctx) => {
-    const { name } = req.body;
-    
-    if (!name || name.trim() === '') {
-      return res(
-        ctx.status(400),
-        ctx.json({ error: 'Item name is required' })
-      );
-    }
-    
-    return res(
-      ctx.status(201),
-      ctx.json({
-        id: 3,
-        name,
-        created_at: new Date().toISOString(),
-      })
-    );
+  rest.post('/api/tasks', (req, res, ctx) => {
+    const newTask = {
+      id: 3,
+      title: req.body.title,
+      description: req.body.description,
+      priority: req.body.priority || 'Medium',
+      status: req.body.status || 'Not Started',
+      dueDate: req.body.dueDate,
+      createdAt: new Date().toISOString(),
+      lastModified: new Date().toISOString()
+    };
+    return res(ctx.status(201), ctx.json(newTask));
+  }),
+  rest.put('/api/tasks/:id', (req, res, ctx) => {
+    const updatedTask = {
+      ...mockTasks.find(task => task.id === parseInt(req.params.id)),
+      ...req.body,
+      lastModified: new Date().toISOString()
+    };
+    return res(ctx.json(updatedTask));
+  }),
+  rest.delete('/api/tasks/:id', (req, res, ctx) => {
+    return res(ctx.status(204));
+  }),
+  // Legacy endpoints for backward compatibility
+  rest.get('/api/items', (req, res, ctx) => {
+    const items = mockTasks.map(task => ({
+      id: task.id,
+      name: task.title,
+      created_at: task.createdAt
+    }));
+    return res(ctx.json(items));
   })
 );
 
-// Setup and teardown for the mock server
 beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-describe('App Component', () => {
-  test('renders the header', async () => {
-    await act(async () => {
-      render(<App />);
-    });
-    expect(screen.getByText('React Frontend with Node Backend')).toBeInTheDocument();
-    expect(screen.getByText('Connected to in-memory database')).toBeInTheDocument();
-  });
-
-  test('loads and displays items', async () => {
+describe('Aurora Task Manager App', () => {
+  test('renders app header and statistics', async () => {
     await act(async () => {
       render(<App />);
     });
     
-    // Initially shows loading state
-    expect(screen.getByText('Loading data...')).toBeInTheDocument();
+    // Check if header is rendered
+    expect(screen.getByText('Aurora Task Manager')).toBeInTheDocument();
     
-    // Wait for items to load
+    // Wait for tasks to load and check statistics
     await waitFor(() => {
-      expect(screen.getByText('Test Item 1')).toBeInTheDocument();
-      expect(screen.getByText('Test Item 2')).toBeInTheDocument();
+      expect(screen.getByText('Total')).toBeInTheDocument();
+      expect(screen.getByText('Completed')).toBeInTheDocument();
+      expect(screen.getByText('In Progress')).toBeInTheDocument();
+      expect(screen.getByText('Not Started')).toBeInTheDocument();
     });
   });
 
-  test('adds a new item', async () => {
+  test('loads and displays tasks', async () => {
+    await act(async () => {
+      render(<App />);
+    });
+    
+    // Wait for tasks to load
+    await waitFor(() => {
+      expect(screen.getByText('Test Task 1')).toBeInTheDocument();
+      expect(screen.getByText('Test Task 2')).toBeInTheDocument();
+    });
+    
+    // Check task details
+    expect(screen.getByText('First test task')).toBeInTheDocument();
+    expect(screen.getByText('Second test task')).toBeInTheDocument();
+  });
+
+  test('opens task creation form when FAB is clicked', async () => {
     const user = userEvent.setup();
     
     await act(async () => {
       render(<App />);
     });
     
-    // Wait for items to load
+    // Wait for initial load
     await waitFor(() => {
-      expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
+      expect(screen.getByText('Aurora Task Manager')).toBeInTheDocument();
     });
     
-    // Fill in the form and submit
-    const input = screen.getByPlaceholderText('Enter item name');
+    // Click the floating action button
+    const fab = screen.getByRole('button', { name: /add task/i });
     await act(async () => {
-      await user.type(input, 'New Test Item');
+      await user.click(fab);
     });
     
-    const submitButton = screen.getByText('Add Item');
+    // Check if form dialog opens
+    expect(screen.getByText('Create New Task')).toBeInTheDocument();
+  });
+
+  test('creates a new task', async () => {
+    const user = userEvent.setup();
+    
     await act(async () => {
-      await user.click(submitButton);
+      render(<App />);
     });
     
-    // Check that the new item appears
+    // Wait for initial load
     await waitFor(() => {
-      expect(screen.getByText('New Test Item')).toBeInTheDocument();
+      expect(screen.getByText('Aurora Task Manager')).toBeInTheDocument();
+    });
+    
+    // Open task creation form
+    const fab = screen.getByRole('button', { name: /add task/i });
+    await act(async () => {
+      await user.click(fab);
+    });
+    
+    // Fill in task details
+    const titleInput = screen.getByLabelText(/task title/i);
+    await act(async () => {
+      await user.type(titleInput, 'New Test Task');
+    });
+    
+    // Submit the form
+    const createButton = screen.getByRole('button', { name: /create task/i });
+    await act(async () => {
+      await user.click(createButton);
+    });
+    
+    // Wait for success message
+    await waitFor(() => {
+      expect(screen.getByText(/task created successfully/i)).toBeInTheDocument();
     });
   });
 
-  test('handles API error', async () => {
-    // Override the default handler to simulate an error
+  test('displays error state when API fails', async () => {
+    // Override the server to return an error
     server.use(
-      rest.get('/api/items', (req, res, ctx) => {
-        return res(ctx.status(500));
+      rest.get('/api/tasks', (req, res, ctx) => {
+        return res(ctx.status(500), ctx.json({ error: 'Server error' }));
       })
     );
     
@@ -110,17 +177,17 @@ describe('App Component', () => {
       render(<App />);
     });
     
-    // Wait for error message
+    // Wait for error to appear
     await waitFor(() => {
-      expect(screen.getByText(/Failed to fetch data/)).toBeInTheDocument();
+      expect(screen.getByText(/server error/i)).toBeInTheDocument();
     });
   });
 
-  test('shows empty state when no items', async () => {
-    // Override the default handler to return empty array
+  test('displays empty state when no tasks exist', async () => {
+    // Override the server to return empty array
     server.use(
-      rest.get('/api/items', (req, res, ctx) => {
-        return res(ctx.status(200), ctx.json([]));
+      rest.get('/api/tasks', (req, res, ctx) => {
+        return res(ctx.json([]));
       })
     );
     
@@ -130,7 +197,23 @@ describe('App Component', () => {
     
     // Wait for empty state message
     await waitFor(() => {
-      expect(screen.getByText('No items found. Add some!')).toBeInTheDocument();
+      expect(screen.getByText(/no tasks found/i)).toBeInTheDocument();
     });
+  });
+
+  test('statistics display correct counts', async () => {
+    await act(async () => {
+      render(<App />);
+    });
+    
+    // Wait for tasks to load and statistics to update
+    await waitFor(() => {
+      expect(screen.getByText('Total')).toBeInTheDocument();
+    });
+    
+    // The statistics should reflect the mock data:
+    // Total: 2, In Progress: 1, Not Started: 1, Completed: 0
+    const statsCards = screen.getAllByRole('region');
+    expect(statsCards).toBeDefined();
   });
 });

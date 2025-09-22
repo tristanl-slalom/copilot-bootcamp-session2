@@ -7,7 +7,13 @@
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
     "axios": "^1.6.2",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "@mui/material": "^5.14.20",
+    "@mui/icons-material": "^5.14.19",
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "date-fns": "^2.30.0",
+    "prop-types": "^15.8.1"
   },
   "scripts": {
     "start": "react-scripts start",

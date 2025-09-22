@@ -1,99 +1,288 @@
-import React, { useState, useEffect } from 'react';
-import './App.css';
+import React, { useState } from 'react';
+import {
+  ThemeProvider,
+  CssBaseline,
+  AppBar,
+  Toolbar,
+  Typography,
+  Container,
+  Box,
+  Fab,
+  Snackbar,
+  Alert,
+  Grid,
+  Card,
+  CardContent,
+  useMediaQuery,
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  CheckCircle as CheckCircleIcon,
+  Schedule as ScheduleIcon,
+  PlayArrow as PlayArrowIcon,
+} from '@mui/icons-material';
+
+import auroraTheme from './theme/auroraTheme';
+import { useTaskManager } from './hooks/useTaskManager';
+import { useTaskFilters } from './hooks/useTaskFilters';
+import { TaskList, TaskForm, TaskFilters } from './components/task-management';
 
 function App() {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [newItem, setNewItem] = useState('');
+  const {
+    tasks,
+    loading,
+    error,
+    createTask,
+    updateTask,
+    deleteTask,
+    updateTaskStatus,
+    clearError,
+  } = useTaskManager();
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const {
+    filters,
+    filteredTasks,
+    taskCounts,
+    handleFilterChange,
+    clearFilters,
+  } = useTaskFilters(tasks);
 
-  const fetchData = async () => {
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+
+  const isMobile = useMediaQuery(auroraTheme.breakpoints.down('sm'));
+
+  const showSnackbar = (message, severity = 'success') => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+
+  const handleCreateTask = () => {
+    setEditingTask(null);
+    setFormOpen(true);
+  };
+
+  const handleEditTask = (task) => {
+    setEditingTask(task);
+    setFormOpen(true);
+  };
+
+  const handleFormSubmit = async (taskData) => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/items');
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
+      if (editingTask) {
+        await updateTask(editingTask.id, taskData);
+        showSnackbar('Task updated successfully!');
+      } else {
+        await createTask(taskData);
+        showSnackbar('Task created successfully!');
       }
-      const result = await response.json();
-      setData(result);
-      setError(null);
+      setFormOpen(false);
+      setEditingTask(null);
     } catch (err) {
-      setError('Failed to fetch data: ' + err.message);
-      console.error('Error fetching data:', err);
-    } finally {
-      setLoading(false);
+      showSnackbar(err.message || 'An error occurred', 'error');
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!newItem.trim()) return;
-
+  const handleDeleteTask = async (taskId) => {
     try {
-      const response = await fetch('/api/items', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name: newItem }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to add item');
-      }
-
-      const result = await response.json();
-      setData([...data, result]);
-      setNewItem('');
+      await deleteTask(taskId);
+      showSnackbar('Task deleted successfully!');
     } catch (err) {
-      setError('Error adding item: ' + err.message);
-      console.error('Error adding item:', err);
+      showSnackbar(err.message || 'Failed to delete task', 'error');
     }
   };
+
+  const handleStatusChange = async (taskId, status) => {
+    try {
+      await updateTaskStatus(taskId, status);
+      showSnackbar(`Task status updated to ${status}!`);
+    } catch (err) {
+      showSnackbar(err.message || 'Failed to update task status', 'error');
+    }
+  };
+
+  const handleFormClose = () => {
+    setFormOpen(false);
+    setEditingTask(null);
+  };
+
+  // Calculate stats
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter(task => task.status === 'Completed').length;
+  const inProgressTasks = tasks.filter(task => task.status === 'In Progress').length;
+  const notStartedTasks = tasks.filter(task => task.status === 'Not Started').length;
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>React Frontend with Node Backend</h1>
-        <p>Connected to in-memory database</p>
-      </header>
+    <ThemeProvider theme={auroraTheme}>
+      <CssBaseline />
       
-      <main>
-        <section className="add-item-section">
-          <h2>Add New Item</h2>
-          <form onSubmit={handleSubmit}>
-            <input
-              type="text"
-              value={newItem}
-              onChange={(e) => setNewItem(e.target.value)}
-              placeholder="Enter item name"
-            />
-            <button type="submit">Add Item</button>
-          </form>
-        </section>
+      {/* App Bar */}
+      <AppBar position="sticky" elevation={0}>
+        <Toolbar>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            Aurora Task Manager
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {totalTasks} task{totalTasks !== 1 ? 's' : ''}
+          </Typography>
+        </Toolbar>
+      </AppBar>
 
-        <section className="items-section">
-          <h2>Items from Database</h2>
-          {loading && <p>Loading data...</p>}
-          {error && <p className="error">{error}</p>}
-          {!loading && !error && (
-            <ul>
-              {data.length > 0 ? (
-                data.map((item) => (
-                  <li key={item.id}>{item.name}</li>
-                ))
-              ) : (
-                <p>No items found. Add some!</p>
-              )}
-            </ul>
-          )}
-        </section>
-      </main>
-    </div>
+      {/* Main Content */}
+      <Container maxWidth="lg" sx={{ py: 3 }}>
+        {/* Statistics Cards */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <CheckCircleIcon color="success" sx={{ mr: 2 }} />
+                  <Box>
+                    <Typography variant="h4" component="div">
+                      {completedTasks}
+                    </Typography>
+                    <Typography color="text.secondary">
+                      Completed
+                    </Typography>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <PlayArrowIcon color="secondary" sx={{ mr: 2 }} />
+                  <Box>
+                    <Typography variant="h4" component="div">
+                      {inProgressTasks}
+                    </Typography>
+                    <Typography color="text.secondary">
+                      In Progress
+                    </Typography>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <ScheduleIcon color="primary" sx={{ mr: 2 }} />
+                  <Box>
+                    <Typography variant="h4" component="div">
+                      {notStartedTasks}
+                    </Typography>
+                    <Typography color="text.secondary">
+                      Not Started
+                    </Typography>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ 
+                    width: 40, 
+                    height: 40, 
+                    borderRadius: '50%', 
+                    backgroundColor: 'primary.main',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    mr: 2
+                  }}>
+                    <Typography variant="h6" color="primary.contrastText">
+                      {totalTasks}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="h4" component="div">
+                      Total
+                    </Typography>
+                    <Typography color="text.secondary">
+                      All Tasks
+                    </Typography>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        {/* Filters */}
+        <TaskFilters
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          onClearFilters={clearFilters}
+          taskCounts={taskCounts}
+        />
+
+        {/* Task List */}
+        <TaskList
+          tasks={filteredTasks}
+          loading={loading}
+          error={error}
+          onEditTask={handleEditTask}
+          onDeleteTask={handleDeleteTask}
+          onStatusChange={handleStatusChange}
+        />
+
+        {/* Floating Action Button */}
+        <Fab
+          color="primary"
+          aria-label="add task"
+          sx={{
+            position: 'fixed',
+            bottom: 16,
+            right: 16,
+            '&:hover': {
+              transform: 'scale(1.1)',
+            },
+          }}
+          onClick={handleCreateTask}
+        >
+          <AddIcon />
+        </Fab>
+
+        {/* Task Form Dialog */}
+        <TaskForm
+          open={formOpen}
+          onClose={handleFormClose}
+          onSubmit={handleFormSubmit}
+          task={editingTask}
+          loading={loading}
+        />
+
+        {/* Snackbar for notifications */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={4000}
+          onClose={handleCloseSnackbar}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        >
+          <Alert 
+            onClose={handleCloseSnackbar} 
+            severity={snackbar.severity}
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Container>
+    </ThemeProvider>
   );
 }
 
