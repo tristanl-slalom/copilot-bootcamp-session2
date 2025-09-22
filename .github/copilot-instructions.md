@@ -8,9 +8,12 @@ This file contains high-level instructions for GitHub Copilot to follow when gen
 
 When creating new functionality for this project, always refer to the functional requirements document to ensure alignment with project goals and user needs.
 
+When working on the user interface, follow the UI guidelines to maintain consistency with the aurora borealis theme, Material-UI components, and interactive animations.
+
 ## Documentation Overview
 
 The project documentation will be built during the bootcamp sessions.
 
 - [Project Overview](../docs/project-overview.md) - Overview of the project
 - [Functional Requirements](../docs/functional-requirements.md) - Core requirements for task management features
+- [UI Guidelines](../docs/ui-guidelines.md) - Design system, color palette, and interaction guidelines
